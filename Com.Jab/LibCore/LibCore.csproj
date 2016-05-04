@@ -45,6 +45,8 @@
     <Compile Include="IAllocator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="TimePointInMinutes.cs" />
+    <Compile Include="TimePointInQuarters.cs" />
     <Compile Include="UInt128.cs" />
     <Compile Include="Unicode\CodePoint.cs" />
     <Compile Include="Util.cs" />
