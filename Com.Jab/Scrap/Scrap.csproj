@@ -1,0 +1,86 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{AE787FC4-0AEE-41BE-BBE3-ACF0AF7CF043}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Com.Jab.Scrap</RootNamespace>
+    <AssemblyName>Com.Jab.Scrap</AssemblyName>
+    <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="JS\modules.js" />
+    <Content Include="JS\TP\app\Base.js" />
+    <Content Include="JS\TP\app\DependencyObject.js" />
+    <Content Include="JS\TP\app\DispatcherAndEvents.js" />
+    <Content Include="JS\TP\app\hosting\webBrowser\Base.js" />
+    <Content Include="JS\TP\app\hosting\webBrowser\Css.js" />
+    <Content Include="JS\TP\app\hosting\webBrowser\Element.js" />
+    <Content Include="JS\TP\app\hosting\webBrowser\Input.js" />
+    <Content Include="JS\TP\app\hosting\webBrowser\Navigation.js" />
+    <Content Include="JS\TP\app\hosting\webBrowser\Renderer.js" />
+    <Content Include="JS\TP\app\HttpRequest.js" />
+    <Content Include="JS\TP\app\Ieee754FloatingPointUtilities.js" />
+    <Content Include="JS\TP\app\Integer.js" />
+    <Content Include="JS\TP\app\JsonMarkup.js" />
+    <Content Include="JS\TP\app\List.js" />
+    <Content Include="JS\TP\app\Matrix2D.js" />
+    <Content Include="JS\TP\app\ui\Buttons.js" />
+    <Content Include="JS\TP\app\ui\ContentControl.js" />
+    <Content Include="JS\TP\app\ui\ContextLayoutManager.js" />
+    <Content Include="JS\TP\app\ui\FrameworkElement.js" />
+    <Content Include="JS\TP\app\ui\Input.js" />
+    <Content Include="JS\TP\app\ui\media\Transforms2D.js" />
+    <Content Include="JS\TP\app\ui\Menu.js" />
+    <Content Include="JS\TP\app\ui\ModalDialog.js" />
+    <Content Include="JS\TP\app\ui\Old.js" />
+    <Content Include="JS\TP\app\ui\Panels.js" />
+    <Content Include="JS\TP\app\ui\Popup.js" />
+    <Content Include="JS\TP\app\ui\UIElement.js" />
+    <Content Include="JS\TP\_references.js" />
+    <Content Include="JS\utilities.js" />
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
