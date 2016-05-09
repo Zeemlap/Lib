@@ -13,13 +13,17 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
 {
     internal class ExcelWorkbookReader : IDisposable
     {
-        private const string WorksheetFileNameBase = "xl/worksheets/";
-        private static readonly Regex WorksheetNameFromFileNameRegex = new Regex("^" + Regex.Escape(WorksheetFileNameBase) + "([^/\\.]+)\\.xml$", RegexOptions.Compiled);
+
+        private const string workbookFileName = "xl/workbook.xml";
+        private const string xmlExtension = ".xml";
 
         private ZipArchive m_zipArchive;
         private bool m_hasRead;
         private Workbook m_result;
-        private SharedStringTableXml m_sst;
+        private SharedStringTableXml m_sharedStringTableXml;
+        private WorkbookXml m_workbookXml;
+        private RelationshipRootXml m_workbookRelsXml;
+
         public ExcelWorkbookReader(Stream stream)
         {
             bool ex = true;
@@ -46,28 +50,48 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
         {
             if (m_hasRead) return m_result;
             m_result = new Workbook();
-            m_sst = DeserializeXmlZipArchiveEntry<SharedStringTableXml>(GetZipArchiveEntry("xl/sharedStrings.xml"));
-            CheckSst();
-            foreach(var e in m_zipArchive.Entries)
+            m_sharedStringTableXml = DeserializeXmlZipArchiveEntry<SharedStringTableXml>(GetZipArchiveEntry("xl/sharedStrings.xml"));
+            ValidateSharedStringTable();
+
+            m_workbookXml = DeserializeXmlZipArchiveEntry<WorkbookXml>(GetZipArchiveEntry(workbookFileName));
+            if (m_workbookXml.Sheets != null && 0 < m_workbookXml.Sheets.Length)
             {
-                var m = WorksheetNameFromFileNameRegex.Match(e.FullName);
-                if (!m.Success) continue;
-                var wsName = m.Groups[1].Captures.Cast<Capture>().Single().Value;
-                var wsXml = DeserializeXmlZipArchiveEntry<WorksheetXml>(e);
-                var ws = ReadWorksheet(wsName, wsXml);
-                m_result.WorksheetsInternal.Add(ws);
-                ws.Workbook = m_result;
+                m_workbookRelsXml = DeserializeXmlZipArchiveEntry<RelationshipRootXml>(
+                    GetZipArchiveEntry(
+                        GetRelationshipsFileName(workbookFileName)));
+                foreach (var wbWs in m_workbookXml.Sheets)
+                {
+                    if (wbWs.RelationshipId == null) throw new Exception();
+                    var wbWsRel = m_workbookRelsXml.Relationships.Single(r => r.Id == wbWs.RelationshipId);
+                    if (wbWsRel.Type != XmlConstants.Namespace_OfficeRelationships_Worksheet) throw new Exception();
+                    string wsFileName = ResolveRelativeFileName(workbookFileName, wbWsRel.Target);
+                    var wsXml = DeserializeXmlZipArchiveEntry<WorksheetXml>(GetZipArchiveEntry(wsFileName));
+                    var ws = ReadWorksheet(wsFileName, wsXml);
+
+                    ws.Name = wbWs.Name;
+                    ws.Workbook = m_result;
+                    m_result.WorksheetsInternal.Add(ws);
+                }
             }
+            
             m_hasRead = true;
             return m_result;
         }
 
-        private void CheckSst()
+        private static string GetRelationshipsFileName(string fileName)
+        {
+            if (fileName == null) throw new ArgumentNullException();
+            int i1 = fileName.LastIndexOf('/');
+            if (i1 < 0) throw new ArgumentException();
+            return fileName.Substring(0, i1) + "/_rels/" + fileName.Substring(i1 + 1) + ".rels";
+        }
+
+        private void ValidateSharedStringTable()
         {
             List<DrawingRXml1> rXmlStack = new List<DrawingRXml1>();
-            for (int i = 0; i < m_sst.si.Length; i++)
+            for (int i = 0; i < m_sharedStringTableXml.si.Length; i++)
             {
-                var si = m_sst.si[i];
+                var si = m_sharedStringTableXml.si[i];
                 if ((si.r != null) == (si.t != null))
                 {
                     throw new NotImplementedException();
@@ -92,22 +116,20 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
                 }
             }
         }
-
-        private Worksheet ReadWorksheet(string wsName, WorksheetXml wsXml)
+        
+        private Worksheet ReadWorksheet(string wsFileName, WorksheetXml wsXml)
         {
             var ws = new Worksheet();
-            ws.Name = wsName;
             for (int i = 0; i < wsXml.Rows.Length; i++)
             {
                 var row = ReadRow(wsXml.Rows[i]);
                 ws.RowsInternal.Add(row);
                 row.Worksheet = ws;
             }
-            bool hasRels = wsXml.Drawings.Any(d => d.id != null);
+            bool hasRels = wsXml.Drawings != null && wsXml.Drawings.Any(d => d.id != null);
             if (hasRels)
             {
-                var wsRelsFileName = WorksheetFileNameBase + "_rels/" + wsName + ".xml.rels";
-                var wsFileName = WorksheetFileNameBase + wsName + ".xml.rels";
+                var wsRelsFileName = GetRelationshipsFileName(wsFileName);
                 var wsRelsXml = DeserializeXmlZipArchiveEntry<RelationshipRootXml>(GetZipArchiveEntry(wsRelsFileName));
                 foreach (var drawingRelId in wsXml.Drawings.Select(d => d.id))
                 {
@@ -172,12 +194,13 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
         private static string ResolveRelativeFileName(string baseFileName, string relFileName)
         {
             int baseFileNameLen = baseFileName.Length;
+            var i = baseFileName.LastIndexOf('/', baseFileNameLen - 1);
+            if (i < 0) throw new ArgumentException();
+            baseFileNameLen = i; // get directory name
+
             int relFileNameStart = 0;
             if (StartsWith_Ordinal(relFileName, relFileNameStart, "../"))
             {
-                var i = baseFileName.LastIndexOf('/', baseFileNameLen - 1);
-                if (i < 0) throw new ArgumentException();
-                baseFileNameLen = i; // get directory name
                 do
                 {
                     i = baseFileName.LastIndexOf('/', baseFileNameLen - 1);
@@ -187,8 +210,7 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
                 } while (StartsWith_Ordinal(relFileName, relFileNameStart, "../"));
                 return baseFileName.Substring(0, baseFileNameLen) + relFileName.Substring(relFileNameStart - 1);
             }
-
-            throw new NotImplementedException();
+            return baseFileName.Substring(0, baseFileNameLen) + '/' + relFileName;
         }
 
         private Row ReadRow(RowXml rowXml)
@@ -224,8 +246,10 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
                 switch (cellXml.t)
                 {
                     case "s":
-                        var e = m_sst.si[int.Parse(cellXml.v, NumberStyles.None, NumberFormatInfo.InvariantInfo)];
+                        var e = m_sharedStringTableXml.si[int.Parse(cellXml.v, NumberStyles.None, NumberFormatInfo.InvariantInfo)];
                         cell.ValueUnformatted = GetUnformattedValue(e);
+                        break;
+                    case "str":
                         break;
                     default:
                         throw new NotImplementedException();

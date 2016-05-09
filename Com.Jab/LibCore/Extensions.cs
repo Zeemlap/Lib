@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -234,6 +235,41 @@ namespace Com.Jab.LibCore
             }
         }
 
+        public static IEnumerable<int> CodePoints(this StringBuilder sb, int start = 0)
+        {
+            return sb.CodePoints(start, sb.Length);
+        }
+
+        public static IEnumerable<int> CodePoints(this StringBuilder sb, int start, int end)
+        {
+            int sbLen = sb.Length;
+            if (start < 0
+                || sbLen < start
+                || end < start
+                || sbLen < end)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+            int cu1, cu2;
+            for (int i = start; i < end; i++)
+            {
+                cu1 = sb[i];
+                if (0xD800 <= cu1
+                    && cu1 < 0xDC00
+                    && i + 1 < end
+                    && 0xDC00 <= (cu2 = sb[i + 1])
+                    && cu2 <= 0xDFFF)
+                {
+                    i += 1;
+                    yield return (((cu1 - 0xD800) << 10) | (cu2 - 0xDC00)) + 0x10000;
+                }
+                else
+                {
+                    yield return cu1;
+                }
+            }
+        }
+
         public static IEnumerable<int> CodePointsReverse(this string s, int start = 0)
         {
             return CodePointsReverse(s, start, s.Length);
@@ -267,6 +303,46 @@ namespace Com.Jab.LibCore
                     yield return cu2;
                 }
             }
+        }
+
+        public static IEnumerable<int> CodePointsReverse(this StringBuilder sb, int start = 0)
+        {
+            return sb.CodePointsReverse(start, sb.Length);
+        }
+
+        public static IEnumerable<int> CodePointsReverse(this StringBuilder sb, int start, int end)
+        {
+            int sLen = sb.Length;
+            if (start < 0
+                || sLen < start
+                || end < start
+                || sLen < end)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+            int cu1, cu2;
+            for (int i = end; start <= --i;)
+            {
+                cu2 = sb[i];
+                if (0xDC00 <= cu2
+                    && cu2 <= 0xDFFF
+                    && start <= i - 1
+                    && 0xD800 <= (cu1 = sb[i - 1])
+                    && cu1 < 0xDC00)
+                {
+                    i -= 1;
+                    yield return (((cu1 - 0xD800) << 10) | (cu2 - 0xDC00)) + 0x10000;
+                }
+                else
+                {
+                    yield return cu2;
+                }
+            }
+        }
+
+        public static bool IsWhiteSpace(this string s)
+        {
+            return !s.CodePoints().Any(cp => !new CodePoint(cp).IsWhiteSpace());
         }
 
         public static int TrimEndWhile(this string s, int start, int end, Func<int, bool> pred)
@@ -424,8 +500,22 @@ namespace Com.Jab.LibCore
         {
             return new CultureAwaiter<T>(task);
         }
-        
+
         #endregion
 
+        #region Collections
+
+        public static int FindIndex<T>(this IReadOnlyList<T> list, Func<T, bool> predicate)
+        {
+            if (predicate == null) throw new ArgumentNullException();
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (predicate(list[i])) return i;
+            }
+            return -1;
+        }
+
+        #endregion
     }
 }
+

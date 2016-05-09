@@ -261,7 +261,20 @@ namespace Com.Jba.LibCore.Unicode
         // the code points that are considered white space are the same as those that http://msdn.microsoft.com/en-us/library/system.char.iswhitespace(v=vs.110).aspx consideres whitespace
         public bool IsWhiteSpace()
         {
-            switch (Value)
+            if (IsWhiteSpace_Common(Value)) return true;
+            switch (Category)
+            {
+                case UnicodeCategory.SpaceSeparator:
+                case UnicodeCategory.LineSeparator:
+                case UnicodeCategory.ParagraphSeparator:
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool IsWhiteSpace_Common(int cp)
+        {
+            switch (cp)
             {
                 case '\t':
                 case '\n':
@@ -273,10 +286,16 @@ namespace Com.Jba.LibCore.Unicode
                 case ' ':
                     return true;
             }
-            switch (Category)
+            return false;
+        }
+
+        public static bool IsWhiteSpace(int cp)
+        {
+            if (IsWhiteSpace_Common(cp)) return true;
+            switch (GetCategory(cp))
             {
-                case UnicodeCategory.SpaceSeparator:
                 case UnicodeCategory.LineSeparator:
+                case UnicodeCategory.SpaceSeparator:
                 case UnicodeCategory.ParagraphSeparator:
                     return true;
             }

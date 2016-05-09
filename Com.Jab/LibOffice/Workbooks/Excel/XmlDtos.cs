@@ -12,7 +12,7 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
         public const string Namespace_Relationships = "http://schemas.openxmlformats.org/package/2006/relationships";
         public const string Namespace_OfficeRelationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
         public const string Namespace_OfficeRelationships_Drawing = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing";
-
+        public const string Namespace_OfficeRelationships_Worksheet = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet";
     }
 
     public class CellXml
@@ -49,6 +49,26 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
 
     [Serializable]
     [XmlType(Namespace = XmlConstants.Namespace_SpreadsheetMain)]
+    [XmlRoot("workbook", Namespace = XmlConstants.Namespace_SpreadsheetMain)]
+    public class WorkbookXml
+    {
+        public class SheetXml
+        {
+            [XmlAttribute("name")]
+            public string Name;
+            [XmlAttribute("sheetId")]
+            public string SheetId;
+            [XmlAttribute("id", Namespace = XmlConstants.Namespace_OfficeRelationships)]
+            public string RelationshipId;
+        }
+        [XmlArray("sheets")]
+        [XmlArrayItem("sheet")]
+        public SheetXml[] Sheets;
+    }
+
+
+    [Serializable]
+    [XmlType(Namespace = XmlConstants.Namespace_SpreadsheetMain)]
     [XmlRoot("sst", Namespace = XmlConstants.Namespace_SpreadsheetMain)]
     public class SharedStringTableXml
     {
@@ -71,6 +91,7 @@ namespace Com.Jab.LibOffice.Workbooks.Excel
         [XmlElement("r")]
         public DrawingRXml1[] r;
     }
+
     public class DrawingRXml1
     {
         public string t;
