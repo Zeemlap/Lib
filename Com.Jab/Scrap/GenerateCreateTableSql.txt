@@ -1,0 +1,133 @@
+WITH cte_tab_col_exprs AS (
+	SELECT object_id, CONCAT(
+		'[', REPLACE(col_name, ']', ']]'), ']',
+		'[', REPLACE(data_type, ']', ']]'), ']', 
+		CASE 
+			WHEN data_type IN ('binary', 'char') THEN CONCAT('(', max_length, ')')
+			WHEN data_type IN ('varbinary', 'varchar') THEN CONCAT('(', CASE WHEN max_length = -1 THEN 'MAX' ELSE CAST(max_length AS varchar(5)) END, ')')
+			WHEN data_type = 'nchar' THEN CONCAT('(', max_length / 2, ')')
+			WHEN data_type = 'nvarchar' THEN CONCAT('(', CASE WHEN max_length = -1 THEN 'MAX' ELSE CAST((max_length / 2) AS varchar(5)) END, ')')
+			WHEN data_type IN ('datetime2') THEN CONCAT('(', scale, ')')	
+			ELSE ''
+		END,
+		CASE 
+			WHEN collation_name IS NULL THEN ''
+			ELSE CONCAT('COLLATE ', collation_name)
+		END,
+		CASE  
+			WHEN is_identity = 1 THEN CONCAT(' IDENTITY(', 
+				CASE SQL_VARIANT_PROPERTY(seed_value, 'BaseType')
+					WHEN 'bigint' THEN CAST(seed_value AS VARCHAR(20))
+					WHEN 'int' THEN CAST(seed_value AS VARCHAR(11))
+					WHEN 'smallint' THEN CAST(seed_value AS VARCHAR(6))
+					ELSE CAST(seed_value AS VARCHAR(4)) -- tinyint
+				END
+			,',', 
+				CASE SQL_VARIANT_PROPERTY(increment_value, 'BaseType')
+					WHEN 'bigint' THEN CAST(increment_value AS VARCHAR(20))
+					WHEN 'int' THEN CAST(increment_value AS VARCHAR(11))
+					WHEN 'smallint' THEN CAST(increment_value AS VARCHAR(6))
+					ELSE CAST(increment_value AS VARCHAR(4)) -- tinyint
+				END
+			,')') 
+			ELSE '' 
+		END,
+		' ', CASE WHEN is_nullable = 0 THEN 'NOT NULL' ELSE 'NULL' END
+		) AS col_def_expr,
+		(CASE WHEN (
+			data_type NOT IN ('binary', 'char', 'datetime2', 'nchar', 'nvarchar', 'varbinary', 'varchar') 
+			OR (is_identity = 1 AND SQL_VARIANT_PROPERTY(seed_value, 'BaseType') NOT IN ('bigint', 'int', 'smallint', 'tinyint'))
+			OR (is_identity = 1 AND SQL_VARIANT_PROPERTY(increment_value, 'BaseType') NOT IN ('bigint', 'int', 'smallint', 'tinyint'))) 
+			OR (default_object_id != 0)
+			OR (is_identity = 1 AND seed_value IS NULL)
+			OR (is_identity = 0 AND seed_value IS NOT NULL)
+			OR (is_identity = 1 AND increment_value IS NULL)
+			OR (is_identity = 0 AND increment_value IS NOT NULL)
+			THEN 1 ELSE 0 END) AS is_incomplete
+	FROM (
+		SELECT t1.object_id, t2.name AS col_name, t3.name AS data_type, 
+			t2.max_length, 
+			t2.precision, 
+			t2.scale, 
+			t2.collation_name, 
+			t2.is_nullable, 
+			t2.default_object_id,
+			t2.is_identity,
+			t4.seed_value,
+			t4.increment_value
+		FROM sys.tables t1
+		INNER JOIN sys.columns t2 ON t1.object_id = t2.object_id
+		INNER JOIN sys.types t3 ON (t2.system_type_id = t3.user_type_id OR (t2.system_type_id = 240 AND t2.user_type_id = t3.user_type_id))
+		LEFT JOIN sys.identity_columns t4 ON (t2.object_id = t4.object_id AND t4.column_id = t2.column_id)) t1
+	),
+	cte_idx_cols AS (
+		SELECT c.object_id, ic.index_id, ic.key_ordinal, c.name AS c_name, ic.is_descending_key
+		FROM sys.columns c
+		INNER JOIN sys.index_columns ic ON c.object_id = ic.object_id AND ic.column_id = c.column_id
+		ORDER BY c.object_id, ic.index_id, ic.key_ordinal
+		OFFSET 0 ROWS),
+	cte_tab_pk_constraints AS (SELECT t.object_id, CONCAT(
+		'CONSTRAINT',
+		'[', REPLACE(kc.name, ']', ']]'), ']',
+		'PRIMARY KEY ',
+		CASE i.type WHEN 1 THEN 'CLUSTERED' ELSE 'NONCLUSTERED' END,
+		'(', t_index_col_exprs.index_cols_expr, ')',
+		CASE i.fill_factor WHEN 0 THEN '' ELSE CONCAT('WITH FILLFACTOR=', i.fill_factor) END) AS pk_tab_constraint_expr, 
+		(1 - i.allow_page_locks) + 
+			(1 - i.allow_row_locks) + 
+			i.has_filter + i.is_hypothetical + 
+			i.is_disabled + i.ignore_dup_key + 
+			i.is_unique_constraint + (1 - i.is_unique) + 
+			(CASE i.type WHEN 1 THEN 0 ELSE 1 END) +
+			kc.is_ms_shipped + kc.is_published +
+			kc.is_schema_published + kc.is_system_named +
+			(CASE i.index_id WHEN kc.unique_index_id THEN 0 ELSE 1 END) +
+			(CASE ds.data_space_id WHEN 1 THEN 0 ELSE 1 END) AS is_incomplete
+	FROM sys.schemas s
+	INNER JOIN sys.tables t ON t.schema_id = s.schema_id
+	INNER JOIN sys.indexes i ON i.object_id = t.object_id
+	INNER JOIN sys.key_constraints kc ON kc.parent_object_id = t.object_id
+	INNER JOIN (
+		SELECT t1.object_id, t1.index_id, SUBSTRING(t1.index_col_expr_strjoin, 2, LEN(t1.index_col_expr_strjoin) - 1) AS index_cols_expr
+		FROM (
+			SELECT cte1.object_id, cte1.index_id, (
+				SELECT CONCAT(',[', REPLACE(cte2.c_name, ']', ']]'), ']', CASE cte2.is_descending_key WHEN 1 THEN 'DESC' ELSE 'ASC' END)
+				FROM cte_idx_cols cte2
+				WHERE cte1.object_id = cte2.object_id AND cte1.index_id = cte2.index_id
+				FOR XML PATH('')) AS index_col_expr_strjoin
+			FROM cte_idx_cols cte1
+			GROUP BY cte1.object_id, cte1.index_id) t1
+		) t_index_col_exprs ON t_index_col_exprs.object_id = t.object_id AND t_index_col_exprs.index_id = i.index_id
+	INNER JOIN sys.data_spaces ds ON i.data_space_id = ds.data_space_id 
+	WHERE i.is_primary_key = 1
+	ORDER BY t.object_id
+	OFFSET 0 ROWS)
+SELECT CONCAT(CASE WHEN t1.is_incomplete = 1 THEN 'BLA_' ELSE '' END, 'CREATE TABLE', t1.object_name, t1.create_tab_expr_core) AS create_tab_expr
+FROM (
+	SELECT CONCAT(
+		'[', REPLACE(DB_NAME(), ']', ']]'), '].',
+		'[', REPLACE(s.name, ']', ']]'), '].',
+		'[', REPLACE(t2.name, ']', ']]'), ']')
+		AS object_name,
+		CONCAT('(', t1.col_defs_expr,
+		',', pk_tab_constraint_expr,
+		')') AS create_tab_expr_core, 
+		(CASE WHEN t2.is_filetable = 1 THEN 1 ELSE 0 END) AS is_incomplete
+	FROM (
+		SELECT object_id, CONCAT(SUBSTRING(col_def_expr_strjoin, 2, LEN(col_def_expr_strjoin) - 1), '') AS col_defs_expr
+		FROM (
+			SELECT t2.object_id, 
+				(SELECT ',' + t3.col_def_expr
+				FROM cte_tab_col_exprs t3
+				WHERE t2.object_id = t3.object_id
+				FOR XML PATH('')) AS col_def_expr_strjoin
+			FROM cte_tab_col_exprs t2
+			GROUP BY t2.object_id) t1
+		) t1
+	INNER JOIN sys.tables t2 ON t2.object_id = t1.object_id
+	INNER JOIN sys.schemas s ON t2.schema_id = s.schema_id
+	INNER JOIN (
+		SELECT object_id, 
+			CONCAT(CASE is_incomplete WHEN 1 THEN 'BLA_' ELSE '' END, pk_tab_constraint_expr) AS pk_tab_constraint_expr
+		FROM cte_tab_pk_constraints) AS t3 ON t2.object_id = t3.object_id
+	) t1
