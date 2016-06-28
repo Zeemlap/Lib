@@ -14,19 +14,8 @@ namespace Com.Jab.Enterprise.HtmlAgilityPack
 {
     public static class Extensions
     {
-        public static async Task<HtmlDocument> GetHtmlDocumentAsync(this IHttpClient httpClient,
-            string url,
-            TimeSpan timeout,
-            CancellationToken cancellationToken = default(CancellationToken))
+        public static async Task<HtmlDocument> ReadAsHtmlDocumentAsync(this HttpResponseMessage resMsg)
         {
-            var reqMsg = new HttpRequestMessage(HttpMethod.Get, url);
-            reqMsg.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html", 1));
-            reqMsg.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
-            reqMsg.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
-            HttpResponseMessage resMsg = await httpClient.SendAsync(reqMsg,
-                timeout,
-                HttpCompletionOption.ResponseContentRead,
-                cancellationToken);
             resMsg.EnsureSuccessStatusCode();
             Stream stream1 = null;
             try
@@ -34,7 +23,7 @@ namespace Com.Jab.Enterprise.HtmlAgilityPack
                 var contentType = resMsg.Content.Headers.ContentType;
                 if (contentType.MediaType != "text/html")
                 {
-                    throw new NotImplementedException();
+                    throw new InvalidOperationException();
                 }
                 var contentCharSet = HttpUtil.EncodingFromCharSet(contentType.CharSet);
                 var contentEncoding = resMsg.Content.Headers.ContentEncoding.SingleOrDefault();
@@ -50,7 +39,7 @@ namespace Com.Jab.Enterprise.HtmlAgilityPack
                             stream1 = new DeflateStream(stream1, CompressionMode.Decompress, false);
                             break;
                         default:
-                            throw new NotImplementedException();
+                            throw new NotSupportedException();
                     }
                 }
                 var htmlDoc = new HtmlDocument();
@@ -62,5 +51,6 @@ namespace Com.Jab.Enterprise.HtmlAgilityPack
                 stream1?.Dispose();
             }
         }
+        
     }
 }

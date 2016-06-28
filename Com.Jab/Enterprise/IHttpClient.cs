@@ -7,18 +7,25 @@ namespace Com.Jab.Enterprise
 {
     public interface IHttpClient
     {
-        /// <summary>
-        /// Same as HttpClient, except throws TimeoutException on timeout.
-        /// </summary>
-        /// <param name="request"></param>
-        /// <param name="timeout"></param>
-        /// <param name="completionOption"></param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
+        int DefaultTimeoutMs { get; }
+        int DefaultMaxRetryCount { get; }
+        int DefaultRetryDelayMs { get; }
+
+        // Same as HttpClient, except throws TimeoutException on timeout.
         Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, 
-            TimeSpan timeout,
-            HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead, 
-            CancellationToken cancellationToken = default(CancellationToken));
+            HttpRequestMessage request,
+            HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead,
+            CancellationToken cancellationToken = default(CancellationToken),
+            int timeoutMs = -2);
+
+        Task<T> SendWithRetriesAsync<T>(
+            Func<Task<HttpRequestMessage>> getRequestFunc,
+            Func<HttpResponseMessage, Task<T>> parseResponseFunc,
+            HttpCompletionOption completionOption = HttpCompletionOption.ResponseContentRead,
+            CancellationToken cancellationToken = default(CancellationToken),
+            Func<Exception, bool> shouldRetryFunc = null,
+            int timeoutMs = -2,
+            int maxRetryCount = -1,
+            int retryDelayMs = -1);
     }
 }

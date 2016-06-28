@@ -82,9 +82,9 @@
     <Compile Include="Win32Util.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SystemEx\SystemEx.csproj">
+    <ProjectReference Include="..\Ex.System\Ex.System.csproj">
       <Project>{507c2621-0d0b-4109-8939-be06147540ba}</Project>
-      <Name>SystemEx</Name>
+      <Name>Ex.System</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

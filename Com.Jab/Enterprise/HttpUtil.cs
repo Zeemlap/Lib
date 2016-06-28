@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -15,6 +16,26 @@ namespace Com.Jab.Enterprise
     {
         private static string s_sHttpStatusCodeExceptionPrefix = "Response status code does not indicate success:";
         private static Regex s_reHttpStatusCodeException = new Regex(@"^[ ]+(\d+)(?:[ ]+\(([^\)]*)\))?\.$");
+
+        public static Encoding EncodingFromCharSet(string value)
+        {
+            if (value != null)
+            {
+                if ("UTF-8".Equals(value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Encoding.UTF8;
+                }
+                else if ("ISO-8859-1".Equals(value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Encoding.GetEncoding("ISO-8859-1");
+                }
+                else
+                {
+                    throw new NotImplementedException();
+                }
+            }
+            return null;
+        }
 
         // -1 if not HTTP exception
         public static int GetStatusCode(Exception ex)
@@ -68,6 +89,8 @@ namespace Com.Jab.Enterprise
                     case SocketError.ConnectionAborted:
                         // An established connection was aborted by the software in your host machine.
                         return true;
+                    case SocketError.TimedOut:
+                        return true;
                 }
                 return false;
             }
@@ -87,87 +110,25 @@ namespace Com.Jab.Enterprise
             return false;
         }
 
-        public static Encoding EncodingFromCharSet(string value)
+        public static Task<HttpRequestMessage> CreateGetHtmlRequestAsync(string uri)
         {
-            if (value != null)
+            HttpRequestMessage reqMsg = null;
+            bool reqMsg_shouldDispose = true;
+            try
             {
-                if ("UTF-8".Equals(value, StringComparison.OrdinalIgnoreCase))
-                {
-                    return Encoding.UTF8;
-                }
-                else if ("ISO-8859-1".Equals(value, StringComparison.OrdinalIgnoreCase))
-                {
-                    return Encoding.GetEncoding("ISO-8859-1");
-                }
-                else
-                {
-                    throw new NotImplementedException();
-                }
+                reqMsg = new HttpRequestMessage(HttpMethod.Get, uri);
+                reqMsg.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html", 1.0));
+                reqMsg.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
+                reqMsg.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("deflate"));
+                reqMsg_shouldDispose = false;
+                return Task.FromResult(reqMsg);
             }
-            return null;
-        }
-
-        // Throws timeout exception if all maxRetryCount + 1 attempts to perform the HttpClient operation ran by httpClient_sendAsyncFunc resulted in either a timeout (TimeoutException) or 
-        // an exception for which IsUnreliableConnectivityException returns true.
-        public static async Task<T> SendAsync_HandleUnreliableConnectivity<T>(
-            Func<Task<T>> httpClient_sendAsyncFunc,
-            int maxRetryCount = 2,
-            int retryDelayInMilliseconds = 1000)
-        {
-            int retryCount = -1;
-            while (true)
+            finally
             {
-                try
+                if (reqMsg_shouldDispose && reqMsg != null)
                 {
-                    return await httpClient_sendAsyncFunc();
+                    reqMsg.Dispose();
                 }
-                catch (AggregateException ex1)
-                {
-                    ex1 = ex1.Flatten();
-                    var ex1InnerEXList = ex1.InnerExceptions;
-                    var ex1InnerEXList_filtered = new List<Exception>();
-                    for (int i = 0; i < ex1InnerEXList.Count; i++)
-                    {
-                        if (IsUnreliableConnectivityException(ex1InnerEXList[i]))
-                        {
-                            continue;
-                        }
-                        if (ex1InnerEXList[i] is TimeoutException)
-                        {
-                            continue;
-                        }
-                        ex1InnerEXList_filtered.Add(ex1InnerEXList[i]);
-                    }
-                    if (0 < ex1InnerEXList_filtered.Count)
-                    {
-                        if (ex1InnerEXList_filtered.Count < ex1InnerEXList.Count)
-                        {
-                            throw new AggregateException(ex1InnerEXList_filtered.ToArray());
-                        }
-                        throw;
-                    }
-                }
-                catch (Exception ex1)
-                {
-                    bool shouldRethrow = true;
-                    if (IsUnreliableConnectivityException(ex1))
-                    {
-                        shouldRethrow = false;
-                    }
-                    if (ex1 is TimeoutException)
-                    {
-                        shouldRethrow = false;
-                    }
-                    if (shouldRethrow)
-                    {
-                        throw;
-                    }
-                }
-                if (maxRetryCount < ++retryCount)
-                {
-                    throw new TimeoutException();
-                }
-                await Task.Delay(retryDelayInMilliseconds);
             }
         }
 

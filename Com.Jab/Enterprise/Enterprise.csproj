@@ -40,14 +40,26 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DeserializationInfo.cs" />
     <Compile Include="GooglePasswordStrengthService.cs" />
     <Compile Include="HttpClientSimple.cs" />
+    <Compile Include="HttpClientWithLocalFallbackCache.cs" />
+    <Compile Include="HttpMessageSerializerSimple.cs" />
     <Compile Include="HttpUtil.cs" />
     <Compile Include="IHttpClient.cs" />
+    <Compile Include="IHttpMessageSerializer.cs" />
+    <Compile Include="ILogger.cs" />
     <Compile Include="IPasswordStrengthService.cs" />
+    <Compile Include="LogLevel.cs" />
     <Compile Include="PasswordStrength.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="UnreliableConnectivityException.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ex.System\Ex.System.csproj">
+      <Project>{507c2621-0d0b-4109-8939-be06147540ba}</Project>
+      <Name>Ex.System</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

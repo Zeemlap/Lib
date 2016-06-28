@@ -6,6 +6,8 @@ namespace Com.Jab.Enterprise
 {
     public interface IPasswordStrengthService
     {
-        Task<PasswordStrength> GetPasswordStrengthAsync(string password, TimeSpan timeout, CancellationToken cancellationToken = default(CancellationToken));
+        Task<PasswordStrength> GetPasswordStrengthAsync(string password, 
+            CancellationToken cancellationToken = default(CancellationToken),
+            int timeoutMs = -2);
     }
 }

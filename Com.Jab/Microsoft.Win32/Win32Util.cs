@@ -2,7 +2,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
-using Com.Jab.SystemEx;
+using Com.Jab.Ex.System;
 using Com.Jab.Microsoft.Win32.IO;
 using System.Transactions;
 using Com.Jab.Microsoft.Win32.PInvoke;
